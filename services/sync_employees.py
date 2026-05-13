@@ -1,22 +1,50 @@
 import os
-from dotenv import load_dotenv
 import math
 import requests
 import sqlite3
+
+from dotenv import load_dotenv
+
+from utils.logger import (
+    log_event
+)
+
+
+
+
 load_dotenv()
+
 
 # -------------------------
 # SQLITE
 # -------------------------
 
-conn = sqlite3.connect("warehouse.db")
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
+
+DB_PATH = os.path.join(
+    BASE_DIR,
+    "warehouse.db"
+)
+
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS employees (
+
     id INTEGER PRIMARY KEY,
+
     full_name TEXT,
-    mobile_phone TEXT
+
+    mobile_phone TEXT,
+
+    telegram_id INTEGER,
+
+    role TEXT DEFAULT 'user'
 )
 """)
 
@@ -40,14 +68,17 @@ auth_response = requests.post(
 )
 
 if auth_response.status_code != 200:
-    print("ПОМИЛКА АВТОРИЗАЦІЇ")
+
+    log_event("ПОМИЛКА АВТОРИЗАЦІЇ")
+
     exit()
+
 
 auth_data = auth_response.json()
 
 access_token = auth_data["authToken"]["accessToken"]
 
-print("Авторизація успішна")
+log_event("Авторизація успішна")
 
 
 # -------------------------
@@ -76,9 +107,12 @@ first_response = requests.get(
 first_data = first_response.json()
 
 total_count = first_data["totalCount"]
-total_pages = math.ceil(total_count / 100)
 
-print(f"Працівників: {total_count}")
+total_pages = math.ceil(
+    total_count / 100
+)
+
+log_event(f"Працівників: {total_count}")
 
 all_employees = first_data["items"]
 
@@ -101,9 +135,11 @@ for page in range(2, total_pages + 1):
 
         page_data = response.json()
 
-        all_employees.extend(page_data["items"])
+        all_employees.extend(
+            page_data["items"]
+        )
 
-        print(f"Сторінка {page} OK")
+        log_event(f"Сторінка {page} OK")
 
 
 # -------------------------
@@ -114,9 +150,15 @@ for emp in all_employees:
 
     emp_id = emp.get("id")
 
-    full_name = emp.get("fullName", "")
+    full_name = emp.get(
+        "fullName",
+        ""
+    )
 
-    mobile_phone = emp.get("mobilePhone", "")
+    mobile_phone = emp.get(
+        "mobilePhone",
+        ""
+    )
 
     mobile_phone = (
         mobile_phone
@@ -125,21 +167,53 @@ for emp in all_employees:
         .replace("-", "")
     )
 
+    # Чи існує працівник
     cursor.execute("""
-    INSERT OR REPLACE INTO employees (
-        id,
-        full_name,
-        mobile_phone
-    )
-    VALUES (?, ?, ?)
+    SELECT id
+    FROM employees
+    WHERE id = ?
     """, (
         emp_id,
-        full_name,
-        mobile_phone
     ))
+
+    existing_employee = cursor.fetchone()
+
+    # UPDATE
+    if existing_employee:
+
+        cursor.execute("""
+        UPDATE employees
+        SET
+            full_name = ?,
+            mobile_phone = ?
+        WHERE id = ?
+        """, (
+            full_name,
+            mobile_phone,
+            emp_id
+        ))
+
+    # INSERT
+    else:
+
+        cursor.execute("""
+        INSERT INTO employees (
+            id,
+            full_name,
+            mobile_phone
+        )
+        VALUES (?, ?, ?)
+        """, (
+            emp_id,
+            full_name,
+            mobile_phone
+        ))
+
 
 conn.commit()
 
-print(f"Збережено: {len(all_employees)} працівників")
+log_event(
+    f"Збережено: {len(all_employees)} працівників"
+)
 
 conn.close()
