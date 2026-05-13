@@ -63,6 +63,12 @@ from handlers.super_admin_logs import (
     router as super_admin_logs_router
 )
 
+from handlers.admin_vehicle_journal import (
+    router as admin_vehicle_journal_router
+)
+
+
+
 
 
 
@@ -145,6 +151,10 @@ dp.include_router(
 
 dp.include_router(
     super_admin_logs_router
+)
+
+dp.include_router(
+    admin_vehicle_journal_router
 )
 
 

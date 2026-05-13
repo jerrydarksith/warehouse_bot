@@ -102,7 +102,12 @@ def get_admin_menu():
                     text=f"🔧 Сервіс техніки ({service_count})"
                 )
             ],
-
+            
+            [
+                KeyboardButton(
+                    text="📋 Журнал техніки"
+                )
+            ],
             [
                 KeyboardButton(
                     text="🚜 Стан техніки"

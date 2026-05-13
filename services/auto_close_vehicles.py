@@ -6,6 +6,16 @@ import requests
 from datetime import datetime
 
 from dotenv import load_dotenv
+import sys
+
+sys.path.append(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
+    )
+)
+
 
 from utils.logger import (
     log_event
