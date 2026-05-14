@@ -348,8 +348,8 @@ async def sync_employees(
 
     result = subprocess.run(
         [
-            "python3",
-            "services/sync_employees.py"
+            "/home/ubuntu/warehouse_bot/venv/bin/python3",
+            "/home/ubuntu/warehouse_bot/services/sync_employees.py"
         ],
         capture_output=True,
         text=True

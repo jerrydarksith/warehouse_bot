@@ -12,6 +12,18 @@ from handlers.admin import (
     get_admin_menu
 )
 
+from aiogram.fsm.state import (
+    StatesGroup,
+    State
+)
+
+
+from aiogram.fsm.context import (
+    FSMContext
+)
+
+
+
 router = Router()
 
 
@@ -39,6 +51,11 @@ ban_menu = ReplyKeyboardMarkup(
         [
             KeyboardButton(
                 text="🔓 Розбанити всіх"
+            )
+        ],
+                [
+            KeyboardButton(
+                text="🚫 Ручний бан"
             )
         ],
         [
@@ -100,7 +117,7 @@ async def active_bans(
     JOIN employees e
     ON ub.employee_id = e.id
 
-    JOIN vehicles v
+    LEFT JOIN vehicles v
     ON ub.vehicle_id = v.id
 
     WHERE ub.active = 1
@@ -217,7 +234,7 @@ async def unban_user_menu(
     JOIN employees e
     ON ub.employee_id = e.id
 
-    JOIN vehicles v
+    LEFT JOIN vehicles v
     ON ub.vehicle_id = v.id
 
     WHERE ub.active = 1
@@ -248,9 +265,17 @@ async def unban_user_menu(
 
         vehicle_number = ban[3]
 
+        vehicle_text = "Без техніки"
+
+        if vehicle_type and vehicle_number:
+           vehicle_text = (
+               f"{vehicle_type} "
+               f"№{vehicle_number}"
+           )
+
         keyboard_rows.append([
             KeyboardButton(
-                text=f"🔓 {ban_id} | {full_name} | {vehicle_type} №{vehicle_number}"
+                text=f"🔓 {ban_id} | {full_name} | {vehicle_text}"
             )
         ])
 
@@ -413,6 +438,369 @@ async def ban_history(
         response,
         reply_markup=ban_menu
     )
+
+
+# -------------------------
+# STATES
+# -------------------------
+
+class ManualBanState(
+    StatesGroup
+):
+
+    waiting_search = State()
+
+    waiting_select = State()
+
+    waiting_reason = State()
+
+
+
+
+
+# -------------------------
+# MANUAL BAN
+# -------------------------
+
+@router.message(
+    F.text == "🚫 Ручний бан"
+)
+async def manual_ban_start(
+    message: Message,
+    state: FSMContext
+):
+
+    await state.set_state(
+        ManualBanState.waiting_search
+    )
+
+    await message.answer(
+        "👤 Введіть прізвище\n\n"
+        "Наприклад:\n"
+        "Босак"
+    )
+
+
+# -------------------------
+# SEARCH USER
+# -------------------------
+
+@router.message(
+    ManualBanState.waiting_search
+)
+async def manual_ban_search(
+    message: Message,
+    state: FSMContext
+):
+
+    search_text = (
+        message.text.strip()
+    )
+
+    conn = sqlite3.connect(
+        "warehouse.db"
+    )
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT
+
+        id,
+        full_name
+
+    FROM employees
+
+    WHERE full_name LIKE ?
+
+    ORDER BY full_name
+    """, (
+        f"{search_text}%",
+    ))
+
+    employees = cursor.fetchall()
+
+    conn.close()
+
+    if not employees:
+
+        await message.answer(
+            "❌ Нічого не знайдено"
+        )
+
+        return
+
+    keyboard_rows = []
+
+    for employee in employees:
+
+        employee_id = employee[0]
+
+        full_name = employee[1]
+
+        keyboard_rows.append([
+            KeyboardButton(
+                text=(
+                    f"👤 "
+                    f"{full_name}"
+                )
+            )
+        ])
+
+    keyboard_rows.append([
+        KeyboardButton(
+            text="⬅️ Назад"
+        )
+    ])
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=keyboard_rows,
+        resize_keyboard=True
+    )
+
+    await state.update_data(
+        found_users=employees
+    )
+
+    await message.answer(
+        "👤 Оберіть користувача",
+        reply_markup=keyboard
+    )
+
+    await state.set_state(
+        ManualBanState.waiting_select
+    )
+
+# -------------------------
+# SELECT USER
+# -------------------------
+
+@router.message(
+    ManualBanState.waiting_select
+)
+async def manual_ban_select(
+    message: Message,
+    state: FSMContext
+):
+
+    text = message.text.replace(
+        "👤 ",
+        ""
+    ).strip()
+
+    data = await state.get_data()
+
+    found_users = data.get(
+        "found_users",
+        []
+    )
+
+    selected_user = None
+
+    for user in found_users:
+
+        if user[1] == text:
+
+            selected_user = user
+
+            break
+
+    if not selected_user:
+
+        await message.answer(
+            "❌ Користувача не знайдено"
+        )
+
+        return
+
+    employee_id = selected_user[0]
+
+    full_name = selected_user[1]
+
+    await state.update_data(
+        selected_employee_id=employee_id,
+        selected_full_name=full_name
+    )
+
+    await state.set_state(
+        ManualBanState.waiting_reason
+    )
+
+    await message.answer(
+        f"🚫 {full_name}\n\n"
+        f"📝 Введіть причину бану"
+    )
+
+
+# -------------------------
+# SAVE MANUAL BAN
+# -------------------------
+
+@router.message(
+    ManualBanState.waiting_reason
+)
+async def manual_ban_reason(
+    message: Message,
+    state: FSMContext
+):
+
+    reason = (
+        message.text.strip()
+    )
+
+    data = await state.get_data()
+
+    employee_id = data.get(
+        "selected_employee_id"
+    )
+
+    full_name = data.get(
+        "selected_full_name"
+    )
+
+    conn = sqlite3.connect(
+        "warehouse.db"
+    )
+
+    cursor = conn.cursor()
+
+
+    # ADMIN
+    cursor.execute("""
+    SELECT id, full_name
+    FROM employees
+    WHERE telegram_id = ?
+    """, (
+        message.from_user.id,
+    ))
+
+    admin = cursor.fetchone()
+
+    admin_id = admin[0]
+
+    admin_name = admin[1]
+
+    # SAVE BAN
+    cursor.execute("""
+    INSERT INTO user_bans (
+
+        employee_id,
+        reason,
+        created_at,
+        active,
+        ban_type,
+        banned_by
+
+    ) VALUES (?, ?, datetime('now'), 1, ?, ?)
+    """, (
+        employee_id,
+        reason,
+        "manual",
+        admin_id,
+    ))
+
+    conn.commit()
+
+    # USER TELEGRAM
+    cursor.execute("""
+    SELECT telegram_id
+    FROM employees
+    WHERE id = ?
+    """, (
+        employee_id,
+    ))
+
+    user = cursor.fetchone()
+
+    # ACTIVE VEHICLE
+    cursor.execute("""
+    SELECT
+
+        v.type,
+        v.number
+
+    FROM vehicle_usage vu
+
+    JOIN vehicles v
+    ON vu.vehicle_id = v.id
+
+    WHERE
+        vu.employee_id = ?
+        AND vu.end_time IS NULL
+    """, (
+        employee_id,
+    ))
+
+    active_vehicle = cursor.fetchone()
+
+    conn.close()
+
+    # NOTIFY USER
+    if user and user[0]:
+
+        try:
+
+            if active_vehicle:
+
+                vehicle_type = active_vehicle[0]
+
+                vehicle_number = active_vehicle[1]
+
+                notify_text = (
+                    f"🚫 Ваш доступ до техніки "
+                    f"заблоковано\n\n"
+
+                    f"📝 Причина:\n"
+                    f"{reason}\n\n"
+
+                    f"🚜 Активна техніка:\n"
+                    f"{vehicle_type} №{vehicle_number}\n\n"
+
+                    f"⚠️ Негайно припиніть "
+                    f"користування технікою\n"
+                    f"та здайте її механіку.\n\n"
+
+                    f"👤 Адміністратор:\n"
+                    f"{admin_name}"
+                )
+
+            else:
+
+                notify_text = (
+                    f"🚫 Ваш доступ до техніки "
+                    f"заблоковано\n\n"
+
+                    f"📝 Причина:\n"
+                    f"{reason}\n\n"
+
+                    f"👤 Адміністратор:\n"
+                    f"{admin_name}"
+                )
+
+            await message.bot.send_message(
+                user[0],
+                notify_text
+            )
+
+        except:
+
+            pass
+
+    await state.clear()
+
+    await message.answer(
+        f"✅ Користувача заблоковано\n\n"
+        f"👤 {full_name}\n\n"
+        f"📝 Причина:\n"
+        f"{reason}",
+        reply_markup=ban_menu
+    )
+
+
+
+
+
+
 
 
 

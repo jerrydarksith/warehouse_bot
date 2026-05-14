@@ -158,8 +158,6 @@ dp.include_router(
 )
 
 
-
-
 # -------------------------
 # MAIN
 # -------------------------
@@ -176,8 +174,8 @@ async def main():
 
     scheduler.add_job(
         lambda: subprocess.run([
-            "python3",
-            "services/remind_unclosed.py"
+            "/home/ubuntu/warehouse_bot/venv/bin/python3",
+            "/home/ubuntu/warehouse_bot/services/remind_unclosed.py"
         ]),
         "cron",
         hour=20,
@@ -190,8 +188,8 @@ async def main():
 
     scheduler.add_job(
         lambda: subprocess.run([
-            "python3",
-            "services/auto_close_vehicles.py"
+            "/home/ubuntu/warehouse_bot/venv/bin/python3",
+            "/home/ubuntu/warehouse_bot/services/auto_close_vehicles.py"
         ]),
         "cron",
         hour=21,
