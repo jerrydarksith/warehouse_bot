@@ -13,6 +13,7 @@ from utils.roles import (
 router = Router()
 
 
+
 # -------------------------
 # LOGS
 # -------------------------
@@ -46,8 +47,8 @@ async def logs_handler(
 
             logs = file.readlines()
 
-        # Останні 30 рядків
-        last_logs = logs[-30:]
+        # Останні 500 рядків
+        last_logs = logs[-500:]
 
         response = (
             "📜 Системні логи\n\n"
@@ -57,18 +58,23 @@ async def logs_handler(
 
             response += line
 
-        # Telegram limit safety
-        if len(response) > 4000:
+        # TELEGRAM SPLIT
+        chunk_size = 3500
 
-            response = response[-4000:]
+        for i in range(
+            0,
+            len(response),
+            chunk_size
+        ):
 
-        await message.answer(
-            response
-        )
+            await message.answer(
+                response[i:i + chunk_size]
+            )
 
     except FileNotFoundError:
 
         await message.answer(
             "❌ Файл логів не знайдено"
         )
+
 

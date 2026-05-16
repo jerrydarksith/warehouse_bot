@@ -51,9 +51,15 @@ from handlers.super_admin_users import (
     router as super_admin_users_router
 )
 
-from handlers.super_admin_roles import (
-    router as super_admin_roles_router
+# from handlers.super_admin_roles import (
+#     router as super_admin_roles_router
+# )
+
+from handlers.super_admin_roles_manage import (
+    router as super_admin_roles_manage_router
 )
+
+
 
 from handlers.super_admin_bans import (
     router as super_admin_bans_router
@@ -66,6 +72,21 @@ from handlers.super_admin_logs import (
 from handlers.admin_vehicle_journal import (
     router as admin_vehicle_journal_router
 )
+
+from handlers import (
+    manual_registration
+)
+
+
+from handlers.about import (
+    router as about_router
+)
+
+
+from handlers.faq import (
+    router as faq_router
+)
+
 
 
 
@@ -105,6 +126,15 @@ dp.include_router(
 )
 
 dp.include_router(
+    about_router
+)
+
+dp.include_router(
+    faq_router
+)
+
+
+dp.include_router(
     vehicles_router
 )
 
@@ -135,14 +165,21 @@ dp.include_router(
 dp.include_router(
     super_admin_router
 )
-
+dp.include_router(
+    manual_registration.router
+)
 dp.include_router(
     super_admin_users_router
 )
 
+# dp.include_router(
+#     super_admin_roles_router
+# )
+
 dp.include_router(
-    super_admin_roles_router
+    super_admin_roles_manage_router
 )
+
 
 dp.include_router(
     super_admin_bans_router
@@ -156,6 +193,12 @@ dp.include_router(
 dp.include_router(
     admin_vehicle_journal_router
 )
+
+
+
+
+
+
 
 
 # -------------------------

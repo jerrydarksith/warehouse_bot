@@ -721,11 +721,30 @@ async def vehicle_number_handler(
         f"{current_vehicle_mileage}",
         reply_markup=main_menu
     )
+    
+        # EMPLOYEE NAME
+    cursor.execute("""
+        SELECT full_name
+        FROM employees
+        WHERE id = ?
+        """, (
+            employee_id,
+        ))
+
+    employee = cursor.fetchone()
+
+    full_name = employee[0]
+
+
 
     log_event(
         f"VEHICLE ISSUED: "
-        f"{vehicle_type} №{vehicle_number}"
+        f"{full_name} | "
+        f"{vehicle_type} №{vehicle_number} | "
+        f"{current_vehicle_mileage} мотогодин"
     )
+
+
 
     conn.close()
 
@@ -939,10 +958,46 @@ async def return_mileage_handler(
         reply_markup=main_menu
     )
 
+
+    
+    # EMPLOYEE
+    cursor.execute("""
+    SELECT full_name
+    FROM employees
+    WHERE telegram_id = ?
+    """, (
+        message.from_user.id,
+    ))
+
+    employee = cursor.fetchone()
+
+    full_name = employee[0]
+
+    # VEHICLE
+    cursor.execute("""
+    SELECT type, number
+    FROM vehicles
+    WHERE id = ?
+    """, (
+        vehicle_id,
+    ))
+
+    vehicle = cursor.fetchone()
+
+    vehicle_type = vehicle[0]
+
+    vehicle_number = vehicle[1]
+
+
+
     log_event(
         f"VEHICLE RETURNED: "
-        f"{vehicle_id}"
+        f"{full_name} | "
+        f"{vehicle_type} №{vehicle_number} | "
+        f"{end_mileage} мотогодин"
     )
+
+
 
     conn.close()
 

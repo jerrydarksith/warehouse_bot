@@ -74,6 +74,48 @@ def get_main_menu():
 
 
 
+def build_registration_message(
+    full_name,
+    role
+):
+
+    role_text = "👤 Користувач"
+
+    commands = (
+        "/start - головне меню\n"
+        "/about - інформація\n"
+        "/faq - допомога"
+    )
+
+    if role == "admin":
+
+        role_text = "🛠 Адміністратор"
+
+        commands += (
+            "\n/admin - адмін меню"
+        )
+
+    elif role == "super_admin":
+
+        role_text = (
+            "👑 Супер адміністратор"
+        )
+
+        commands += (
+            "\n/admin - адмін меню"
+            "\n/super - super admin меню"
+        )
+
+    return (
+        f"👋 Вітаємо\n\n"
+        f"👤 {full_name}\n\n"
+        f"🛡 Ваша роль:\n"
+        f"{role_text}\n\n"
+        f"📌 Доступні команди:\n"
+        f"{commands}"
+    )
+
+
 
 # -------------------------
 # START
@@ -113,57 +155,16 @@ async def start_handler(
 
         role = employee[1]
 
-        # DEFAULT
-        role_text = "Користувач"
-
-        commands = "/start"
-
-        # SUPER ADMIN
-        if role == "super_admin":
-
-            role_text = (
-                "👑 Супер адміністратор"
-            )
-
-            commands = (
-                "/start\n"
-                "/admin\n"
-                "/super"
-            )
-
-        # ADMIN
-        elif role == "admin":
-
-            role_text = (
-                "🛠 Адміністратор"
-            )
-
-            commands = (
-                "/start\n"
-                "/admin"
-            )
-
-        # MECHANIC
-        elif role == "mechanic":
-
-            role_text = (
-                "🔧 Механік"
-            )
-
-            commands = (
-                "/start\n"
-                "/admin"
-            )
-
+    
         await message.answer(
-            f"👋 Вітаємо\n\n"
-            f"{full_name}\n\n"
-            f"🛡 Ваша роль:\n"
-            f"{role_text}\n\n"
-            f"📌 Робочі команди:\n"
-            f"{commands}",
+            build_registration_message(
+                full_name,
+                role
+            ),
             reply_markup=get_main_menu()
         )
+
+
 
         log_event(
             f"MENU OPENED: {full_name}"
@@ -289,10 +290,22 @@ async def contact_handler(
 
             conn.commit()
 
+            cursor.execute("""
+            SELECT role
+            FROM employees
+            WHERE id = ?
+            """, (
+                employee_id,
+            ))
+
+            role = cursor.fetchone()[0]
+
             await message.answer(
-                f"✅ Реєстрація успішна\n\n"
-                f"{full_name}",
-                reply_markup=get_main_menu()
+                build_registration_message(
+                    full_name,
+                    role
+                ),
+            reply_markup=get_main_menu()
             )
 
             log_event(
@@ -399,10 +412,22 @@ async def manual_phone_handler(
 
             conn.commit()
 
+            cursor.execute("""
+            SELECT role
+            FROM employees
+            WHERE id = ?
+            """, (
+                employee_id,
+            ))
+
+            role = cursor.fetchone()[0]
+
             await message.answer(
-                f"✅ Реєстрація успішна\n\n"
-                f"{full_name}",
-                reply_markup=get_main_menu()
+                build_registration_message(
+                    full_name,
+                    role
+                ),
+            reply_markup=get_main_menu()
             )
 
             log_event(
@@ -513,11 +538,26 @@ async def full_name_handler(
 
             conn.commit()
 
+            
+            cursor.execute("""
+            SELECT role
+            FROM employees
+            WHERE id = ?
+            """, (
+                employee_id,
+            ))
+
+            role = cursor.fetchone()[0]
+
             await message.answer(
-                f"✅ Реєстрація успішна\n\n"
-                f"{full_name}",
-                reply_markup=get_main_menu()
+                build_registration_message(
+                    full_name,
+                    role
+                ),
+            reply_markup=get_main_menu()
             )
+
+
 
             log_event(
                 f"FULLNAME REGISTERED: {full_name}"
